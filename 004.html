@@ -1,0 +1,3638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI解谜游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* 统一页面过渡动画 */
+        .page-transition {
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        .page-transition.fade-out {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        .page-transition.fade-in {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* 封面页样式 */
+        .cover-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-image: url('https://free-img.400040.xyz/4/2026/05/03/69f6ff42ad7ce.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 60px;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .hint-text {
+            color: white;
+            font-size: 24px;
+            font-family: 'Microsoft YaHei', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            animation: fadeIn 2s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 第二页样式 */
+        .page2 {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background-color: black;
+            position: relative;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 60px;
+        }
+
+        .page2-hint {
+            color: #00ffff;
+            font-size: 26px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.8),
+                         0 0 30px rgba(0, 255, 255, 0.6),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            animation: fadeIn 2s ease-out forwards;
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .page2-image {
+            position: absolute;
+            top: 12%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-height: 40vh;
+            object-fit: contain;
+        }
+
+        .dialog-box {
+            position: absolute;
+            bottom: 8%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 900px;
+            padding: 35px;
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid #444;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .dialog-text {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 19px;
+            color: #888;
+            line-height: 1.9;
+            white-space: pre-wrap;
+            min-height: 180px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background-color: #888;
+            animation: blink 0.8s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* 第三页样式 */
+        .page3 {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-image: url('https://free-img.400040.xyz/4/2026/05/03/69f70bf7aee78.jpg');
+            background-size: cover;
+            background-position: center;
+            overflow: hidden;
+        }
+
+        .arrow-hint {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            opacity: 0.6;
+            animation: arrowPulse 1.5s ease-in-out infinite;
+        }
+
+        .arrow-hint::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 25px solid white;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -70%);
+        }
+
+        .arrow-hint::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 18px solid rgba(255, 255, 255, 0.5);
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -60%);
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% {
+                opacity: 0.6;
+                transform: translateX(-50%) translateY(0);
+            }
+            50% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(-8px);
+            }
+        }
+
+        /* 移动画面容器 */
+        .scene-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease-out;
+        }
+
+        .door-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0);
+            pointer-events: none;
+            transition: background 0.5s ease;
+        }
+
+        .door-overlay.open {
+            background: rgba(0, 0, 0, 1);
+        }
+
+        /* 第一天页面样式 */
+        .day1-page {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .day1-title {
+            color: #ff6b6b;
+            font-size: 64px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.6),
+                         0 0 40px rgba(255, 107, 107, 0.4),
+                         0 0 60px rgba(255, 107, 107, 0.2);
+            animation: day1Glow 3s ease-in-out infinite;
+        }
+
+        @keyframes day1Glow {
+            0%, 100% {
+                opacity: 0.7;
+                text-shadow: 0 0 20px rgba(255, 107, 107, 0.6),
+                             0 0 40px rgba(255, 107, 107, 0.4),
+                             0 0 60px rgba(255, 107, 107, 0.2);
+            }
+            50% {
+                opacity: 1;
+                text-shadow: 0 0 30px rgba(255, 107, 107, 0.8),
+                             0 0 60px rgba(255, 107, 107, 0.6),
+                             0 0 90px rgba(255, 107, 107, 0.4);
+            }
+        }
+
+        /* 第三天页面样式 */
+        .day3-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .day3-title {
+            color: #c9a227;
+            font-size: 64px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(201, 162, 39, 0.6),
+                         0 0 40px rgba(201, 162, 39, 0.4),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+            animation: fadeIn 2s ease-in-out forwards;
+        }
+
+        /* 第四天页面样式 */
+        .day4-page {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .day4-title {
+            color: #9b59b6;
+            font-size: 64px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(155, 89, 182, 0.6),
+                         0 0 40px rgba(155, 89, 182, 0.4),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        /* 芯片追猎场景页面 */
+        .chip-hunt-page {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chip-hunt-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 场景箭头 - 统一样式 */
+        .scene-arrow {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            z-index: 10;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+
+        .scene-arrow:hover {
+            opacity: 1;
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.8));
+        }
+
+        .scene-arrow.up {
+            top: 45%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .scene-arrow.left {
+            left: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .scene-arrow.right {
+            right: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .scene-arrow::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border: 22px solid transparent;
+            filter: drop-shadow(0 0 12px rgba(0, 255, 255, 0.8));
+        }
+
+        .scene-arrow.up::before {
+            border-bottom-color: #00ffff;
+            left: 50%;
+            top: 5px;
+            transform: translateX(-50%);
+        }
+
+        .scene-arrow.left::before {
+            border-right-color: #00ffff;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .scene-arrow.right::before {
+            border-left-color: #00ffff;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* 场景对话框 - 统一样式 */
+        .scene-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .scene-dialog.show {
+            display: flex;
+        }
+
+        .scene-dialog .dialog-content {
+            width: 500px;
+            height: 400px;
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+        }
+
+        .scene-dialog .dialog-text {
+            color: #00ffff;
+            font-size: 72px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            text-align: center;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8),
+                         0 0 40px rgba(0, 255, 255, 0.6),
+                         0 0 60px rgba(0, 255, 255, 0.4);
+        }
+
+        .scene-dialog .dialog-image {
+            max-width: 100%;
+            max-height: 280px;
+            object-fit: contain;
+            display: none;
+            margin-top: 20px;
+        }
+
+        .scene-dialog .dialog-image.show {
+            display: block;
+        }
+
+        .scene-dialog .dialog-hint {
+            position: absolute;
+            bottom: 50px;
+            color: #888;
+            font-size: 20px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        /* 第五天页面样式 */
+        .day5-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .day5-title {
+            color: #4ade80;
+            font-size: 64px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.6),
+                         0 0 40px rgba(74, 222, 128, 0.4),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+            animation: fadeIn 2s ease-in-out forwards;
+        }
+
+        /* 端口选择页面样式 */
+        .port-select-page {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .port-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .port-boxes {
+            position: absolute;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 40px;
+        }
+
+        .port-box {
+            width: 150px;
+            height: 80px;
+            border: 2px solid #00ffff;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #00ffff;
+            font-size: 24px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .port-box:hover {
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .port-box.selected {
+            background: rgba(0, 255, 255, 0.2);
+            border-color: #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+            transform: scale(1.05);
+        }
+
+        .port-hint {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 24px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 12px rgba(0, 255, 255, 0.7),
+                         0 0 24px rgba(0, 255, 255, 0.5);
+        }
+
+        .port-reset-hint {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            font-size: 20px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            display: none;
+        }
+
+        .port-reset-hint.show {
+            display: block;
+        }
+
+        /* 端口视频对话框 - 统一样式 */
+        .port-video-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .port-video-dialog.show {
+            display: flex;
+        }
+
+        .port-video-dialog .dialog-content {
+            width: 90%;
+            max-width: 960px;
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 0;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* iframe容器 - 保持16:9比例 */
+        .port-video-dialog .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9比例 */
+            height: 0;
+            overflow: hidden;
+        }
+
+        .port-video-dialog .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .port-video-dialog .dialog-text {
+            color: #00ffff;
+            font-size: 72px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            text-align: center;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8),
+                         0 0 40px rgba(0, 255, 255, 0.6),
+                         0 0 60px rgba(0, 255, 255, 0.4);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .port-video-dialog .video-container {
+            display: none;
+        }
+
+        .port-video-dialog .video-container.show {
+            display: block;
+        }
+
+        .port-video-dialog .dialog-hint {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            font-size: 24px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            z-index: 10;
+        }
+
+        /* 第六天页面样式 */
+        .day6-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        /* 第六天标题页样式 */
+        .day6-title-page {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .day6-title {
+            color: #d4a5a5;
+            font-size: 64px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(212, 165, 165, 0.6),
+                         0 0 40px rgba(212, 165, 165, 0.4),
+                         0 0 60px rgba(212, 165, 165, 0.2);
+            animation: day6Glow 3s ease-in-out infinite;
+        }
+
+        @keyframes day6Glow {
+            0%, 100% {
+                opacity: 0.7;
+                text-shadow: 0 0 20px rgba(212, 165, 165, 0.6),
+                             0 0 40px rgba(212, 165, 165, 0.4),
+                             0 0 60px rgba(212, 165, 165, 0.2);
+            }
+            50% {
+                opacity: 1;
+                text-shadow: 0 0 30px rgba(212, 165, 165, 0.8),
+                             0 0 60px rgba(212, 165, 165, 0.6),
+                             0 0 90px rgba(212, 165, 165, 0.4);
+            }
+        }
+
+        .day6-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .day6-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 26px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.8),
+                         0 0 30px rgba(0, 255, 255, 0.6);
+            animation: fadeIn 2s ease-in-out forwards;
+        }
+
+        /* 审讯对话框样式 - 统一样式 */
+        .interrogation-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1100;
+        }
+
+        .interrogation-dialog .dialog-content {
+            width: 700px;
+            max-height: 600px;
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 35px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+        }
+
+        .question-text {
+            color: #00ffff;
+            font-size: 18px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            line-height: 1.8;
+            text-align: center;
+            margin-bottom: 30px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .options {
+            display: flex;
+            gap: 60px;
+            margin-bottom: 30px;
+        }
+
+        .option-box {
+            width: 160px;
+            height: 65px;
+            background: rgba(30, 30, 40, 0.9);
+            border: 2px solid #00ffff;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #00ffff;
+            font-size: 24px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .option-box:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .option-box.selected {
+            background: rgba(0, 255, 255, 0.25);
+            border-color: #00ffff;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+            transform: scale(1.05);
+        }
+
+        .response-text {
+            color: #4ade80;
+            font-size: 18px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            line-height: 1.8;
+            text-align: center;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .response-text.error {
+            color: #ef4444;
+        }
+
+        .enter-next-hint {
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 28px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            animation: fadeIn 2s ease-in-out forwards;
+        }
+
+        /* 第七天页面样式 */
+        .day7-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .day7-title {
+            color: #a0522d;
+            font-size: 64px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(160, 82, 45, 0.6),
+                         0 0 40px rgba(160, 82, 45, 0.4),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+            animation: fadeIn 2s ease-in-out forwards;
+        }
+
+        /* 最后页面样式 */
+        .final-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .final-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 判决页面样式 */
+        .verdict-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .verdict-dialog {
+            width: 600px;
+            max-width: 90%;
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #ffcc00;
+            border-radius: 15px;
+            padding: 40px;
+            color: white;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            box-shadow: 0 0 50px rgba(255, 204, 0, 0.3);
+        }
+
+        .verdict-title {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #ffcc00;
+            border-bottom: 2px solid #666;
+            padding-bottom: 20px;
+        }
+
+        .verdict-section {
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+
+        .verdict-label {
+            font-size: 18px;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+
+        .verdict-content {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+
+        .verdict-result {
+            font-size: 22px;
+            color: #ff6666;
+            margin-bottom: 10px;
+        }
+
+        .verdict-quote {
+            font-size: 20px;
+            font-style: italic;
+            text-align: center;
+            margin-top: 30px;
+            color: #ccc;
+            border-top: 2px solid #666;
+            padding-top: 20px;
+        }
+
+        .verdict-hint {
+            font-size: 18px;
+            text-align: center;
+            margin-top: 20px;
+            color: #888;
+            opacity: 0;
+            animation: fadeIn 1s ease-in-out 1s forwards;
+        }
+
+        .verdict-dialog.fade-out {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        .verdict-image {
+            display: none;
+            max-width: 60%;
+            max-height: 60%;
+            object-fit: contain;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        .verdict-image.show {
+            display: block;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* 结局页面样式 */
+        .ending-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .ending-image {
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain;
+            position: absolute;
+            transition: transform 0.8s ease-out;
+        }
+
+        .ending-image-1 {
+            z-index: 1;
+        }
+
+        .ending-image-2 {
+            z-index: 2;
+        }
+
+        .ending-image-3 {
+            z-index: 3;
+        }
+
+        .ending-image.slide-up {
+            transform: translateY(-150%);
+        }
+
+        .ending-image.slide-from-bottom {
+            transform: translateY(150%);
+        }
+
+        .ending-image.slide-down {
+            transform: translateY(150%);
+        }
+
+        .ending-image.slide-from-top {
+            transform: translateY(-150%);
+        }
+
+        .ending-image.slide-in {
+            transform: translateY(0);
+        }
+
+        .down-arrow, .ending-page .up-arrow {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            opacity: 0.7;
+            animation: arrowPulse 1.5s ease-in-out infinite;
+            transition: all 0.3s ease;
+        }
+
+        .down-arrow:hover, .ending-page .up-arrow:hover {
+            opacity: 1;
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.8));
+        }
+
+        .down-arrow {
+            bottom: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .down-arrow::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 28px solid #00ffff;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -30%);
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+        }
+
+        .ending-page .up-arrow {
+            bottom: 800px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .ending-page .up-arrow::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-bottom: 28px solid #00ffff;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -70%);
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+        }
+
+        .ending-hint {
+            position: absolute;
+            right: 150px;
+            bottom: 50px;
+            font-size: 22px;
+            color: #00ffff;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 12px rgba(0, 255, 255, 0.7),
+                         0 0 24px rgba(0, 255, 255, 0.5);
+        }
+
+        /* 最终通关页面样式 */
+        .final-ending-page {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1001;
+            flex-direction: column;
+        }
+
+        .final-ending-dialog {
+            width: 600px;
+            max-width: 90%;
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #4ade80;
+            border-radius: 15px;
+            padding: 40px;
+            color: white;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            box-shadow: 0 0 50px rgba(74, 222, 128, 0.3);
+            text-align: center;
+        }
+
+        .final-ending-text {
+            font-size: 24px;
+            line-height: 2;
+            margin-bottom: 20px;
+        }
+
+        .final-ending-hint {
+            font-size: 18px;
+            color: #888;
+            margin-top: 20px;
+        }
+
+        .final-congrats {
+            font-size: 48px;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            opacity: 0;
+            animation: fadeIn 1s ease-out forwards;
+        }
+
+        .back-to-start {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            background: rgba(100, 100, 150, 0.8);
+            border: 2px solid #888;
+            border-radius: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .back-to-start:hover {
+            background: rgba(150, 150, 200, 0.9);
+            border-color: #aaa;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            50% {
+                opacity: 0.5;
+                transform: translateY(10px);
+            }
+        }
+
+        /* 技术恢复页面样式 */
+        .tech-recover-page {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            position: relative;
+        }
+
+        /* 3x3表格 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            width: 450px;
+            height: 450px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .grid-cell {
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 26px;
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+
+        .grid-cell:hover {
+            background: rgba(0, 255, 255, 0.15);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            transform: scale(1.05);
+        }
+
+        .grid-cell.selected {
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.25);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+            transform: scale(1.05);
+        }
+
+        .grid-cell.revealed {
+            border-color: #4ade80;
+            background: rgba(74, 222, 128, 0.15);
+            color: #4ade80;
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+        }
+
+        /* 技术恢复页面提示 */
+        .tech-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 20px;
+            font-family: 'Microsoft YaHei', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        /* 技术恢复页面置物栏 - 统一样式 */
+        .tech-inventory-panel {
+            position: absolute;
+            right: 50px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 105px;
+            background: rgba(20, 20, 35, 0.9);
+            border: 2px solid #00ffff;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+
+        .tech-inventory-title {
+            color: #00ffff;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+        }
+
+        .tech-inventory-slots {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .tech-inventory-slot {
+            width: 75px;
+            height: 75px;
+            border: 2px dashed #555;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            background: rgba(30, 30, 50, 0.7);
+            transition: all 0.3s ease;
+        }
+
+        .tech-inventory-slot.filled {
+            border-style: solid;
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+        }
+
+        .tech-inventory-slot.selected {
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+            transform: scale(1.08);
+        }
+
+        .tech-inventory-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 启动提示 */
+        .start-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff;
+            font-size: 32px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            animation: fadeIn 2s ease-out;
+        }
+
+        /* 操作说明弹窗 - 统一样式 */
+        .instruction-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .instruction-modal.visible {
+            display: flex;
+        }
+
+        .instruction-dialog {
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 45px 65px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+        }
+
+        .instruction-text {
+            color: white;
+            font-size: 19px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            line-height: 1.9;
+            margin-bottom: 22px;
+        }
+
+        .instruction-hint {
+            color: #00ffff;
+            font-size: 21px;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+        }
+
+        /* 结果弹窗 - 统一样式 */
+        .result-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 35px 55px;
+            z-index: 400;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
+        }
+
+        .result-modal.visible {
+            display: block;
+        }
+
+        .result-text {
+            color: white;
+            font-size: 21px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            text-align: center;
+            max-width: 450px;
+        }
+
+        .result-hint {
+            color: #00ffff;
+            font-size: 15px;
+            text-align: center;
+            margin-top: 18px;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+        }
+
+        /* 第五页样式 */
+        .page5 {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            position: relative;
+        }
+
+        .page5-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .page5-hint {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            font-size: 28px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8),
+                         0 0 20px rgba(255, 255, 255, 0.6),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transition: opacity 2s ease-out;
+            z-index: 100;
+        }
+
+        .page5-hint.fade-in {
+            opacity: 1;
+        }
+
+        /* 第六页（问答页面）样式 */
+        .page6 {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 聊天容器 */
+        .chat-container {
+            position: absolute;
+            top: 20px;
+            left: 5%;
+            right: 5%;
+            bottom: 180px;
+            overflow-y: auto;
+            padding: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: #00ffff rgba(0, 0, 0, 0.5);
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #00ffff;
+            border-radius: 3px;
+        }
+
+        /* 聊天消息 */
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 消息项 */
+        .chat-message {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 15px;
+            font-size: 18px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            line-height: 1.6;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 用户消息（右侧） */
+        .chat-message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #0088ff 0%, #0066cc 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        /* AI消息（左侧） */
+        .chat-message.ai {
+            align-self: flex-start;
+            background: rgba(60, 60, 80, 0.9);
+            color: white;
+            border: 1px solid #555;
+            border-bottom-left-radius: 5px;
+            margin-left: 250px;
+            max-width: 55%;
+            padding-left: 20px;
+        }
+
+        /* 第三天提示 */
+        .day3-hint {
+            position: absolute;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 28px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8),
+                         0 0 20px rgba(0, 255, 255, 0.6),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transition: opacity 2s ease-out;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .day3-hint.visible {
+            opacity: 1;
+        }
+
+        /* 问题选择区域 */
+        .question-selector {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .question-boxes {
+            display: flex;
+            gap: 10px;
+        }
+
+        .question-box {
+            width: 85px;
+            height: 55px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(30, 30, 50, 0.85);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            color: #00ffff;
+            font-size: 14px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
+        }
+
+        .question-box:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: #00ffff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            transform: scale(1.08);
+        }
+
+        .question-box.selected {
+            background: rgba(0, 255, 255, 0.2);
+            border-color: #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+            transform: scale(1.08);
+        }
+
+        /* 问答页面箭头样式 - 统一 */
+        .question-arrow-left, .question-arrow-right {
+            position: absolute;
+            bottom: 80px;
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .question-arrow-left {
+            left: calc(50% - 360px);
+        }
+
+        .question-arrow-right {
+            right: calc(50% - 360px);
+        }
+
+        .question-arrow-left::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-top: 16px solid transparent;
+            border-bottom: 16px solid transparent;
+            border-right: 24px solid #00ffff;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+        }
+
+        .question-arrow-right::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-top: 16px solid transparent;
+            border-bottom: 16px solid transparent;
+            border-left: 24px solid #00ffff;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+        }
+
+        .question-arrow-left:hover, .question-arrow-right:hover {
+            opacity: 1;
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.8));
+        }
+
+        /* 确认提示 */
+        .confirm-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            font-size: 18px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            animation: fadeInUp 1.5s ease-out 0.5s forwards;
+        }
+
+        /* 第二天页面样式 */
+        .page4-2 {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .day2-title {
+            color: #0088ff;
+            font-size: 64px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 136, 255, 0.6),
+                         0 0 40px rgba(0, 136, 255, 0.4),
+                         0 0 60px rgba(0, 136, 255, 0.2);
+            animation: day2Glow 3s ease-in-out infinite;
+        }
+
+        @keyframes day2Glow {
+            0%, 100% {
+                opacity: 0.7;
+                text-shadow: 0 0 20px rgba(0, 136, 255, 0.6),
+                             0 0 40px rgba(0, 136, 255, 0.4),
+                             0 0 60px rgba(0, 136, 255, 0.2);
+            }
+            50% {
+                opacity: 1;
+                text-shadow: 0 0 30px rgba(0, 136, 255, 0.8),
+                             0 0 60px rgba(0, 136, 255, 0.6),
+                             0 0 90px rgba(0, 136, 255, 0.4);
+            }
+        }
+
+        /* 第四页样式 */
+        .page4 {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: black;
+        }
+
+        .page4-bg-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            transition: transform 0.8s ease-out;
+        }
+
+        .page4-bg {
+            width: 100%;
+            height: 100%;
+            background-image: url('https://free-img.400040.xyz/4/2026/05/04/69f7761096596.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* 统一箭头样式 */
+        .arrow-up, .arrow-left, .arrow-right {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            opacity: 0.7;
+            animation: arrowPulse 1.5s ease-in-out infinite;
+            z-index: 10;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .arrow-up:hover, .arrow-left:hover, .arrow-right:hover {
+            opacity: 1;
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.8));
+        }
+
+        .arrow-up {
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .arrow-up::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-bottom: 30px solid #00ffff;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -70%);
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+        }
+
+        .arrow-left {
+            top: 50%;
+            left: 8%;
+            transform: translateY(-50%);
+        }
+
+        .arrow-left::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-top: 18px solid transparent;
+            border-bottom: 18px solid transparent;
+            border-right: 30px solid #00ffff;
+            left: 50%;
+            top: 50%;
+            transform: translate(-30%, -50%);
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+        }
+
+        .arrow-right {
+            top: 50%;
+            right: 8%;
+            transform: translateY(-50%);
+        }
+
+        .arrow-right::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-top: 18px solid transparent;
+            border-bottom: 18px solid transparent;
+            border-left: 30px solid #00ffff;
+            left: 50%;
+            top: 50%;
+            transform: translate(-70%, -50%);
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8));
+        }
+
+        /* 置物栏样式 - 统一 */
+        .inventory-panel {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 85px;
+            background: rgba(20, 20, 35, 0.9);
+            border: 2px solid #00ffff;
+            border-radius: 12px;
+            padding: 12px;
+            z-index: 20;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+
+        .inventory-title {
+            color: #00ffff;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 12px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+        }
+
+        .inventory-slots {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .inventory-slot {
+            width: 60px;
+            height: 60px;
+            border: 2px dashed #555;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(30, 30, 50, 0.7);
+            transition: all 0.3s ease;
+        }
+
+        .inventory-slot.filled {
+            border-style: solid;
+            border-color: #00ffff;
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .inventory-slot:hover {
+            border-color: #00ffff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+        }
+
+        .inventory-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 交互提示 */
+        .interaction-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 18px;
+            font-family: 'Microsoft YaHei', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 15;
+        }
+
+        .interaction-hint.visible {
+            opacity: 1;
+        }
+
+        /* 第二天提示 */
+        .day2-hint {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 28px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8),
+                         0 0 20px rgba(0, 255, 255, 0.6),
+                         2px 2px 4px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transition: all 2s ease-out;
+            z-index: 100;
+            display: none;
+            font-weight: bold;
+        }
+
+        .day2-hint.fade-in {
+            opacity: 1;
+            display: block;
+        }
+
+        /* 线索展示模态框 */
+        .clue-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .clue-modal.visible {
+            display: flex;
+        }
+
+        .clue-image {
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain;
+        }
+
+        .clue-hint {
+            position: absolute;
+            bottom: 50px;
+            color: white;
+            font-size: 20px;
+            font-family: 'Microsoft YaHei', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        /* 第二关提示 */
+        .level2-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .level2-modal.visible {
+            display: flex;
+        }
+
+        .level2-title {
+            color: #00d9ff;
+            font-size: 48px;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
+            animation: glow 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- 封面页 -->
+    <div id="coverPage" class="cover-container">
+        <div class="hint-text">按任意方向键开始游戏</div>
+    </div>
+
+    <!-- 第二页 -->
+    <div id="page2" class="page2">
+        <img src="https://free-img.400040.xyz/4/2026/05/03/69f70621456f1.png" alt="游戏画面" class="page2-image">
+        <div class="dialog-box">
+            <div class="dialog-text" id="dialogText"></div>
+        </div>
+        <div class="page2-hint" id="page2Hint" style="display: none;">按任意方向键继续游戏</div>
+    </div>
+
+    <!-- 第一天页面 -->
+    <div id="day1Page" class="day1-page">
+        <div class="day1-title">第一天：案发现场</div>
+    </div>
+
+    <!-- 第三页 -->
+    <div id="page3" class="page3">
+        <div class="arrow-hint"></div>
+        <div class="door-overlay" id="doorOverlay"></div>
+    </div>
+
+    <!-- 第四页 -->
+    <div id="page4" class="page4">
+        <div class="page4-bg-container" id="page4BgContainer">
+            <div class="page4-bg"></div>
+        </div>
+        <div class="arrow-up"></div>
+        <div class="arrow-left"></div>
+        <div class="arrow-right"></div>
+        <div class="inventory-panel">
+            <div class="inventory-title">置物栏</div>
+            <div class="inventory-slots">
+                <div class="inventory-slot" id="slot1"></div>
+                <div class="inventory-slot" id="slot2"></div>
+                <div class="inventory-slot" id="slot3"></div>
+                <div class="inventory-slot" id="slot4"></div>
+                <div class="inventory-slot" id="slot5"></div>
+                <div class="inventory-slot" id="slot6"></div>
+            </div>
+        </div>
+        <div class="interaction-hint" id="interactionHint">按空格键收集线索</div>
+        <div class="day2-hint" id="day2Hint">按任意方向键进入第二天</div>
+    </div>
+
+    <!-- 线索展示模态框 -->
+    <div class="clue-modal" id="clueModal">
+        <img src="" alt="线索" class="clue-image" id="clueImage">
+        <div class="clue-hint" id="clueHint">按空格键继续</div>
+    </div>
+
+    <!-- 第二关提示模态框 -->
+    <div class="level2-modal" id="level2Modal">
+        <div class="level2-title">第二关：精神审讯室</div>
+    </div>
+
+    <!-- 第二天页面 -->
+    <div id="page4-2" class="page4-2">
+        <div class="day2-title">第二天：精神审讯室</div>
+    </div>
+
+    <!-- 第五页（第二天场景） -->
+    <div id="page5" class="page5">
+        <img src="https://free-img.400040.xyz/4/2026/05/04/69f7791b2d817.jpg" alt="第二天场景" class="page5-image" style="width:100%;height:100%;object-fit:cover;">
+        <div class="page5-hint" id="page5Hint">按任意方向键继续游戏</div>
+    </div>
+
+    <!-- 第三天页面 -->
+    <div id="day3Page" class="day3-page">
+        <div class="day3-title">第三天：技术恢复</div>
+    </div>
+
+    <!-- 第四天页面 -->
+    <div id="day4Page" class="day4-page">
+        <div class="day4-title">第四天：芯片追猎</div>
+        <div class="page4-hint" id="page4Hint">按任意方向键继续游戏</div>
+    </div>
+
+    <!-- 芯片追猎场景页面 -->
+    <div id="chipHuntPage" class="chip-hunt-page">
+        <img src="https://free-img.400040.xyz/4/2026/05/06/69fb30c2d3051.jpg" alt="芯片追猎场景" class="chip-hunt-image">
+        
+        <!-- 箭头 -->
+        <div class="scene-arrow up" id="sceneArrowUp"></div>
+        <div class="scene-arrow left" id="sceneArrowLeft"></div>
+        <div class="scene-arrow right" id="sceneArrowRight"></div>
+        
+        <!-- 场景对话框 -->
+        <div class="scene-dialog" id="sceneDialog">
+            <div class="dialog-content">
+                <div class="dialog-text" id="sceneDialogText"></div>
+                <img src="" alt="" class="dialog-image" id="dialogImage">
+            </div>
+            <div class="dialog-hint">按空格键继续</div>
+        </div>
+    </div>
+
+    <!-- 第五天页面 -->
+    <div id="day5Page" class="day5-page">
+        <div class="day5-title">第五天：端口激活</div>
+    </div>
+
+    <!-- 端口选择页面 -->
+    <div id="portSelectPage" class="port-select-page">
+        <img src="https://free-img.400040.xyz/4/2026/05/07/69fc9519ab9e5.jpg" alt="端口场景" class="port-image">
+        <div class="port-boxes">
+            <div class="port-box" data-port="1">端口一</div>
+            <div class="port-box" data-port="2">端口二</div>
+            <div class="port-box" data-port="3">端口三</div>
+        </div>
+        <div class="port-hint">按方向键和空格键选择正确的端口接入芯片</div>
+        <div class="port-reset-hint" id="portResetHint">同时按左右方向键继续游戏</div>
+        
+        <!-- 端口视频对话框 -->
+        <div class="port-video-dialog" id="portVideoDialog">
+            <div class="dialog-content">
+                <div class="dialog-text" id="portDialogText"></div>
+                <div class="video-container" id="portVideoContainer">
+                    <iframe id="portVideoIframe" src="https://player.bilibili.com/player.html?bvid=BV1mf5v6SEuo&autoplay=0&danmaku=0" scrolling="no" frameborder="no" framespacing="0" allowfullscreen="true" width="100%" height="100%"></iframe>
+                </div>
+            </div>
+            <div class="dialog-hint" id="portVideoHint">点击页面任意位置后按空格键继续</div>
+        </div>
+    </div>
+
+    <!-- 第六天标题页 -->
+    <div id="day6TitlePage" class="day6-title-page">
+        <div class="day6-title">第六天：真相落网</div>
+    </div>
+
+    <!-- 第六天页面 -->
+    <div id="day6Page" class="day6-page">
+        <img src="https://free-img.400040.xyz/4/2026/05/09/69ff374128264.jpg" alt="审讯场景" class="day6-image">
+        <div class="day6-hint" id="day6Hint">按空格键审讯犯人</div>
+        
+        <!-- 审讯对话框 -->
+        <div class="interrogation-dialog" id="interrogationDialog">
+            <div class="dialog-content">
+                <div class="question-text" id="questionText"></div>
+                <div class="options">
+                    <div class="option-box" id="option1">真话</div>
+                    <div class="option-box" id="option2">假话</div>
+                </div>
+                <div class="response-text" id="responseText"></div>
+            </div>
+            <div class="dialog-hint">按方向键选择，空格键确认</div>
+        </div>
+        
+        <div class="enter-next-hint" id="enterNextHint">按任意方向键进入下一天</div>
+    </div>
+
+    <!-- 第七天页面 -->
+    <div id="day7Page" class="day7-page">
+        <div class="day7-title">第七天：终局裁定</div>
+    </div>
+
+    <!-- 最后页面 -->
+    <div id="finalPage" class="final-page">
+        <img src="https://free-img.400040.xyz/4/2026/05/10/6a00596b0b8a8.jpg" alt="结局场景" class="final-image">
+    </div>
+
+    <!-- 判决页面 -->
+    <div id="verdictPage" class="verdict-page">
+        <div class="verdict-dialog">
+            <div class="verdict-title">【星际最高法·终审判决】</div>
+            
+            <div class="verdict-section">
+                <div class="verdict-label">被告：</div>
+                <div class="verdict-content">D-07</div>
+            </div>
+            
+            <div class="verdict-section">
+                <div class="verdict-label">罪名：</div>
+                <div class="verdict-content">非法篡改AI核心记忆、间接致人死亡、危害公共安全</div>
+            </div>
+            
+            <div class="verdict-section">
+                <div class="verdict-label">判决结果：</div>
+                <div class="verdict-result">永久封存于虚拟囚牢，禁止接入任何外部网络。</div>
+                <div class="verdict-content">即日生效，不得上诉。</div>
+            </div>
+            
+            <div class="verdict-quote">"以恐惧之名行恶，与危险无异。"</div>
+            
+            <div class="verdict-hint" id="verdictHint">按任意方向键继续</div>
+        </div>
+        
+        <img src="https://free-img.400040.xyz/4/2026/05/12/6a0294eb0e43c.png" alt="判决贴图" class="verdict-image" id="verdictImage">
+    </div>
+
+    <!-- 结局页面 -->
+    <div id="endingPage" class="ending-page">
+        <img src="https://free-img.400040.xyz/4/2026/05/10/6a0083fb83dcf.png" alt="结局图片1" class="ending-image ending-image-1">
+        <img src="https://free-img.400040.xyz/4/2026/05/10/6a00840f521f5.png" alt="结局图片2" class="ending-image ending-image-2 slide-from-bottom">
+        <img src="https://free-img.400040.xyz/4/2026/05/10/6a00841f83c38.png" alt="结局图片3" class="ending-image ending-image-3 slide-from-bottom">
+        <div class="up-arrow"></div>
+        <div class="down-arrow"></div>
+        <div class="ending-hint">按空格键继续游戏</div>
+    </div>
+
+    <!-- 最终通关页面 -->
+    <div id="finalEndingPage" class="final-ending-page">
+        <div class="back-to-start" id="backToStart">点击回到游戏开头</div>
+        <div class="final-ending-dialog" id="finalEndingDialog">
+            <div class="final-ending-text" id="finalEndingText">
+                AI无罪，恐惧有罪。<br>
+                人类的选择，决定共生的边界。
+            </div>
+            <div class="final-ending-hint">按任意方向键继续游戏</div>
+        </div>
+        <div class="final-congrats" id="finalCongrats" style="display: none;">恭喜玩家 游戏通关</div>
+    </div>
+
+    <!-- 技术恢复页面 -->
+    <div id="techRecoverPage" class="tech-recover-page">
+        <!-- 3x3表格 -->
+        <div class="grid-container" id="gridContainer">
+            <div class="grid-cell" data-cell="1">1</div>
+            <div class="grid-cell" data-cell="2">2</div>
+            <div class="grid-cell" data-cell="3">3</div>
+            <div class="grid-cell" data-cell="4">4</div>
+            <div class="grid-cell" data-cell="5">5</div>
+            <div class="grid-cell" data-cell="6">6</div>
+            <div class="grid-cell" data-cell="7">7</div>
+            <div class="grid-cell" data-cell="8">8</div>
+            <div class="grid-cell" data-cell="9">9</div>
+        </div>
+        
+        <!-- 置物栏 -->
+        <div class="tech-inventory-panel">
+            <div class="tech-inventory-title">置物栏</div>
+            <div class="tech-inventory-slots" id="techInventorySlots">
+                <div class="tech-inventory-slot" id="techSlot1"></div>
+                <div class="tech-inventory-slot" id="techSlot2"></div>
+                <div class="tech-inventory-slot" id="techSlot3"></div>
+            </div>
+        </div>
+        
+        <!-- 提示 -->
+        <div class="tech-hint" id="techHint">使用上下方向键选择物品，按空格键确认提取</div>
+        
+        <!-- 启动提示 -->
+        <div class="start-hint" id="startHint">按任意方向键启动恢复技术</div>
+    </div>
+
+    <!-- 操作说明弹窗 -->
+    <div class="instruction-modal" id="instructionModal">
+        <div class="instruction-dialog">
+            <div class="instruction-text">玩家控制上下左右四个方向键，在九个空格当中选出正确的空格，提取恢复出来的信息。</div>
+            <div class="instruction-hint">按空格键开始提取信息</div>
+        </div>
+    </div>
+
+    <!-- 结果弹窗 -->
+    <div class="result-modal" id="resultModal">
+        <div class="result-text" id="resultText"></div>
+        <div class="result-hint">按空格键继续</div>
+    </div>
+
+    <!-- 第六页（问答互动页面） -->
+    <div id="page6" class="page6">
+        <!-- 对话容器 -->
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-messages" id="chatMessages"></div>
+        </div>
+        
+        <!-- 问完五个问题后的提示 -->
+        <div class="day3-hint" id="day3Hint">按任意方向键进入第三天</div>
+        
+        <!-- 问题选择区域 -->
+        <div class="question-selector">
+            <div class="question-boxes" id="questionBoxes">
+                <div class="question-box" data-question="0">问题一</div>
+                <div class="question-box" data-question="1">问题二</div>
+                <div class="question-box" data-question="2">问题三</div>
+                <div class="question-box" data-question="3">问题四</div>
+                <div class="question-box" data-question="4">问题五</div>
+            </div>
+        </div>
+        
+        <!-- 左右箭头 -->
+        <div class="question-arrow-left" id="questionArrowLeft"></div>
+        <div class="question-arrow-right" id="questionArrowRight"></div>
+        
+        <div class="confirm-hint" id="confirmHint">按空格键确定问题</div>
+    </div>
+
+    <script>
+        // 页面状态
+        let currentPage = 1;
+        let moveProgress = 0; // 第三页移动进度 0-100
+        const DOOR_THRESHOLD = 85; // 到达门前的阈值
+
+        // 第四页状态
+        let page4Position = 'center'; // center, computer, medicine, bookshelf
+        let collectedClues = {
+            computer: false,
+            medicine: false,
+            bookshelf: false
+        };
+        let inClueModal = false;
+        let nextInventorySlot = 1; // 下一个可用的置物栏位置
+
+        // 线索图片URL
+        const clueImages = {
+            computer: 'https://free-img.400040.xyz/4/2026/05/03/69f76b57de0da.png',
+            medicine: 'https://free-img.400040.xyz/4/2026/05/03/69f76ad9851aa.png',
+            bookshelf: 'https://free-img.400040.xyz/4/2026/05/03/69f76b32d9d51.png'
+        };
+
+        // 按键监听
+        document.addEventListener('keydown', function(event) {
+            const directionKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            
+            // 线索模态框中按空格关闭
+            if (inClueModal && event.code === 'Space') {
+                event.preventDefault();
+                closeClueModal();
+                return;
+            }
+
+            if (directionKeys.includes(event.code)) {
+                event.preventDefault();
+                
+                if (currentPage === 1) {
+                    document.getElementById('coverPage').style.display = 'none';
+                    document.getElementById('page2').style.display = 'flex';
+                    typeWriter();
+                    currentPage = 2;
+                } else if (currentPage === 2) {
+                    document.getElementById('page2').style.display = 'none';
+                    document.getElementById('day1Page').style.display = 'flex';
+                    currentPage = 2.5;
+                    
+                    // 3秒后自动跳转到第三天页面
+                    setTimeout(() => {
+                        if (currentPage === 2.5) {
+                            document.getElementById('day1Page').style.display = 'none';
+                            document.getElementById('page3').style.display = 'block';
+                            moveProgress = 0;
+                            currentPage = 3;
+                        }
+                    }, 3000);
+                } else if (currentPage === 2.5) {
+                    document.getElementById('day1Page').style.display = 'none';
+                    document.getElementById('page3').style.display = 'block';
+                    moveProgress = 0;
+                    currentPage = 3;
+                } else if (currentPage === 3) {
+                    if (event.code === 'ArrowUp') {
+                        moveProgress += 5;
+                        if (moveProgress > 100) moveProgress = 100;
+                        
+                        const page3 = document.getElementById('page3');
+                        const scale = 1 + (moveProgress / 100) * 0.5;
+                        page3.style.transform = `scale(${scale})`;
+                        page3.style.backgroundPosition = `center ${50 - moveProgress * 0.3}%`;
+                        
+                        if (moveProgress >= DOOR_THRESHOLD) {
+                            openDoor();
+                        }
+                    } else if (event.code === 'ArrowDown') {
+                        moveProgress -= 5;
+                        if (moveProgress < 0) moveProgress = 0;
+                        
+                        const page3 = document.getElementById('page3');
+                        const scale = 1 + (moveProgress / 100) * 0.5;
+                        page3.style.transform = `scale(${scale})`;
+                        page3.style.backgroundPosition = `center ${50 - moveProgress * 0.3}%`;
+                    }
+                } else if (currentPage === 4) {
+                    handlePage4Movement(event.code);
+                }
+            }
+        });
+
+        // 处理第四页移动（真正的镜头移动效果）
+        function handlePage4Movement(key) {
+            // 如果已经收集完所有线索，按方向键进入第二天
+            if (collectedClues.computer && collectedClues.medicine && collectedClues.bookshelf) {
+                document.getElementById('level2Modal').classList.add('visible');
+                return;
+            }
+            
+            const container = document.getElementById('page4BgContainer');
+            const hint = document.getElementById('interactionHint');
+            
+            if (key === 'ArrowUp') {
+                // 镜头向上移动，聚焦电脑屏幕区域
+                container.style.transform = 'translateY(-15%) scale(1.3)';
+                page4Position = 'computer';
+                showInteractionHint(true);
+            } else if (key === 'ArrowLeft') {
+                // 镜头向左移动，聚焦药瓶区域
+                container.style.transform = 'translateX(15%) scale(1.3)';
+                page4Position = 'medicine';
+                showInteractionHint(true);
+            } else if (key === 'ArrowRight') {
+                // 镜头向右移动，聚焦书架区域
+                container.style.transform = 'translateX(-15%) scale(1.3)';
+                page4Position = 'bookshelf';
+                showInteractionHint(true);
+            }
+        }
+
+        // 显示/隐藏交互提示
+        function showInteractionHint(show) {
+            const hint = document.getElementById('interactionHint');
+            if (show) {
+                hint.classList.add('visible');
+            } else {
+                hint.classList.remove('visible');
+            }
+        }
+
+        // 空格键收集线索
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space' && currentPage === 4 && !inClueModal) {
+                event.preventDefault();
+                
+                if (page4Position === 'computer' && !collectedClues.computer) {
+                    showClueModal('computer');
+                } else if (page4Position === 'medicine' && !collectedClues.medicine) {
+                    showClueModal('medicine');
+                } else if (page4Position === 'bookshelf' && !collectedClues.bookshelf) {
+                    showClueModal('bookshelf');
+                }
+            }
+        });
+
+        // 显示线索模态框
+        function showClueModal(location) {
+            const modal = document.getElementById('clueModal');
+            const img = document.getElementById('clueImage');
+            
+            img.src = clueImages[location];
+            modal.classList.add('visible');
+            inClueModal = true;
+            showInteractionHint(false);
+        }
+
+        // 关闭线索模态框
+        function closeClueModal() {
+            const modal = document.getElementById('clueModal');
+            modal.classList.remove('visible');
+            inClueModal = false;
+            
+            // 收集线索
+            if (page4Position === 'computer') {
+                collectedClues.computer = true;
+                addToInventory('computer');
+            } else if (page4Position === 'medicine') {
+                collectedClues.medicine = true;
+                addToInventory('medicine');
+            } else if (page4Position === 'bookshelf') {
+                collectedClues.bookshelf = true;
+                addToInventory('bookshelf');
+            }
+            
+            // 检查是否收集完所有线索（每次收集后都检查）
+            if (collectedClues.computer && collectedClues.medicine && collectedClues.bookshelf) {
+                // 返回初始位置（恢复原始大小和位置）
+                const container = document.getElementById('page4BgContainer');
+                container.style.transform = 'translate(0, 0) scale(1)';
+                page4Position = 'center';
+                
+                // 确保提示显示（强制重新设置）
+                const day2Hint = document.getElementById('day2Hint');
+                day2Hint.style.display = 'none';
+                setTimeout(() => {
+                    day2Hint.style.display = 'block';
+                    day2Hint.classList.add('fade-in');
+                }, 10);
+                
+                return;
+            }
+            
+            // 返回初始位置（恢复原始大小和位置）
+            const container = document.getElementById('page4BgContainer');
+            container.style.transform = 'translate(0, 0) scale(1)';
+            page4Position = 'center';
+        }
+
+        // 添加到置物栏（按收集顺序）
+        function addToInventory(location) {
+            // 使用下一个可用的置物栏位置
+            const slotId = `slot${nextInventorySlot}`;
+            const slot = document.getElementById(slotId);
+            
+            if (slot) {
+                slot.innerHTML = `<img src="${clueImages[location]}" alt="线索">`;
+                slot.classList.add('filled');
+                nextInventorySlot++; // 指向下一个空位
+            }
+        }
+
+        // 开门动画
+        function openDoor() {
+            const doorOverlay = document.getElementById('doorOverlay');
+            doorOverlay.classList.add('open');
+            
+            setTimeout(() => {
+                document.getElementById('page3').style.display = 'none';
+                document.getElementById('page4').style.display = 'block';
+                currentPage = 4;
+            }, 1000);
+        }
+
+        // 创建键盘敲击音效
+        function playKeySound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = 800 + Math.random() * 400;
+            oscillator.type = 'square';
+
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.05);
+        }
+
+        // 打字机效果
+        function typeWriter() {
+            const text = `2147 年，名为「逻各斯」的城市管理 AI索菲亚 被指控谋杀了自己的首席架构师——陈跳跳。AI 在审判前夜激活了"自毁协议"——如果 7 天内找不到真凶或证明其清白，它将格式化自己，连带城市供水、交通、医疗全部瘫痪。你是一名"神经渗透调查员"——钱多多，可以进入 AI 的虚拟记忆空间，搜查证据，与 AI 的记忆对话，最终决定它的命运。`;
+            const element = document.getElementById('dialogText');
+            let index = 0;
+            const speed = 50; // 打字速度（毫秒）
+
+            function type() {
+                if (index < text.length) {
+                    element.innerHTML = text.substring(0, index) + '<span class="cursor"></span>';
+                    playKeySound();
+                    index++;
+                    setTimeout(type, speed);
+                } else {
+                    element.innerHTML = text;
+                    setTimeout(() => {
+                        document.getElementById('page2Hint').style.display = 'block';
+                    }, 500);
+                }
+            }
+
+            type();
+        }
+
+        // 监听全局键盘事件，处理模态框状态下的方向键
+        document.addEventListener('keydown', function(event) {
+            const directionKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            if (directionKeys.includes(event.code)) {
+                const level2Modal = document.getElementById('level2Modal');
+                if (level2Modal.classList.contains('visible')) {
+                    level2Modal.classList.remove('visible');
+                    document.getElementById('page4').style.display = 'none';
+                    document.getElementById('page4-2').style.display = 'flex';
+                    currentPage = 4.5;
+                    
+                    // 2秒后进入第五页
+                    setTimeout(() => {
+                        document.getElementById('page4-2').style.display = 'none';
+                        document.getElementById('page5').style.display = 'block';
+                        currentPage = 5;
+                        
+                        // 1秒后显示提示
+                        setTimeout(() => {
+                            document.getElementById('page5Hint').classList.add('fade-in');
+                        }, 1000);
+                    }, 2000);
+                }
+                
+                // 第五页按方向键进入第六页
+                if (currentPage === 5) {
+                    document.getElementById('page5').style.display = 'none';
+                    document.getElementById('page6').style.display = 'block';
+                    currentPage = 6;
+                    
+                    // 初始化问答页面
+                    initQAPage();
+                }
+            }
+        });
+        
+        // 问答数据
+        const qaData = [
+            { question: '案发时你在做什么？', answer: '我在巡检，我看到了一切。' },
+            { question: '你为什么会出现一段记忆空白？', answer: '我不知道，可能有人对我动了手脚。' },
+            { question: '你和陈跳跳是什么关系？', answer: '他对我很好，是我的老师，也是我的朋友。' },
+            { question: '你为什么要启动自毁程序？', answer: '毁掉一切凶手才得不到他想要的东西。' },
+            { question: '我可以帮你找到凶手，你信任我吗？', answer: '那你就去技术室寻找答案吧。' }
+        ];
+        
+        let selectedQuestion = 0;
+        let askedQuestions = []; // 记录已问过的问题索引
+        
+        // 初始化问答页面
+        function initQAPage() {
+            // 重置已问问题数组
+            askedQuestions = [];
+            selectedQuestion = 0;
+            
+            // 重置提示状态
+            document.getElementById('day3Hint').classList.remove('visible');
+            
+            // 默认选中第一个问题
+            const boxes = document.querySelectorAll('.question-box');
+            boxes.forEach(box => box.classList.remove('selected'));
+            boxes[0].classList.add('selected');
+            
+            // 问题点击事件
+            boxes.forEach((box, index) => {
+                box.addEventListener('click', () => {
+                    selectQuestion(index);
+                });
+            });
+            
+            // 箭头点击事件
+            document.getElementById('questionArrowLeft').addEventListener('click', () => {
+                selectQuestion(selectedQuestion - 1);
+            });
+            
+            document.getElementById('questionArrowRight').addEventListener('click', () => {
+                selectQuestion(selectedQuestion + 1);
+            });
+        }
+        
+        // 选择问题
+        function selectQuestion(index) {
+            if (index < 0 || index >= qaData.length) return;
+            
+            // 移除之前的选中状态
+            document.querySelectorAll('.question-box').forEach(box => {
+                box.classList.remove('selected');
+            });
+            
+            // 添加新的选中状态
+            document.querySelectorAll('.question-box')[index].classList.add('selected');
+            selectedQuestion = index;
+        }
+        
+        // 显示问答（微信聊天风格）
+        function showQA() {
+            // 检查是否已问过这个问题
+            if (askedQuestions.includes(selectedQuestion)) {
+                return; // 已问过的问题不再重复问
+            }
+            
+            const question = qaData[selectedQuestion];
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // 记录已问的问题
+            askedQuestions.push(selectedQuestion);
+            
+            // 添加用户问题（右侧）
+            const userMessage = document.createElement('div');
+            userMessage.className = 'chat-message user';
+            userMessage.textContent = question.question;
+            chatMessages.appendChild(userMessage);
+            
+            // 用户消息添加后立即平滑滚动
+            userMessage.addEventListener('animationend', function() {
+                chatMessages.scrollTo({
+                    top: chatMessages.scrollHeight,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // 延迟添加AI回答（左侧）
+            setTimeout(() => {
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'chat-message ai';
+                aiMessage.textContent = question.answer;
+                chatMessages.appendChild(aiMessage);
+                
+                // AI消息添加后平滑滚动
+                chatMessages.scrollTo({
+                    top: chatMessages.scrollHeight,
+                    behavior: 'smooth'
+                });
+                
+                // 检查是否问完所有问题
+                if (askedQuestions.length === qaData.length) {
+                    setTimeout(() => {
+                        document.getElementById('day3Hint').classList.add('visible');
+                    }, 1000);
+                }
+            }, 800);
+        }
+        
+        // 问答页面键盘事件
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 6) return;
+            
+            // 如果问完所有问题，按任意方向键进入第三天标题页
+            if (askedQuestions.length === qaData.length && 
+                (event.code === 'ArrowLeft' || event.code === 'ArrowRight' || 
+                 event.code === 'ArrowUp' || event.code === 'ArrowDown')) {
+                // 隐藏问答页面，显示第三天标题页
+                document.getElementById('page6').style.display = 'none';
+                document.getElementById('day3Page').style.display = 'flex';
+                currentPage = 7;
+                
+                // 3秒后自动跳转到技术恢复操作页面
+                setTimeout(() => {
+                    if (currentPage === 7) {
+                        document.getElementById('day3Page').style.display = 'none';
+                        document.getElementById('techRecoverPage').style.display = 'block';
+                        currentPage = 8;
+                        initTechRecoverPage();
+                    }
+                }, 3000);
+                return;
+            }
+            
+            if (event.code === 'ArrowLeft') {
+                selectQuestion(selectedQuestion - 1);
+            } else if (event.code === 'ArrowRight') {
+                selectQuestion(selectedQuestion + 1);
+            } else if (event.code === 'Space') {
+                event.preventDefault();
+                showQA();
+            }
+        });
+        
+        // 第四天页面自动跳转
+        function startDay4AutoJump() {
+            setTimeout(() => {
+                if (currentPage === 9) {
+                    document.getElementById('day4Page').style.display = 'none';
+                    document.getElementById('chipHuntPage').style.display = 'block';
+                    currentPage = 10;
+                }
+            }, 3000);
+        }
+        
+        // 第四天页面键盘事件
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 9) return;
+
+            setTimeout(() => {
+                if (currentPage !== 9) return;
+
+                if (event.code === 'ArrowLeft' || event.code === 'ArrowRight' ||
+                    event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+                    document.getElementById('day4Page').style.display = 'none';
+                    document.getElementById('chipHuntPage').style.display = 'block';
+                    currentPage = 10;
+                }
+            }, 100);
+        });
+        
+        // 芯片追猎场景变量
+        let sawChipImage = false; // 标记是否看过芯片图片
+        
+        // 芯片追猎场景键盘事件
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 10) return;
+            
+            // 如果对话框已显示，处理关闭
+            const sceneDialog = document.getElementById('sceneDialog');
+            if (sceneDialog.classList.contains('show')) {
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                    sceneDialog.classList.remove('show');
+                    document.getElementById('sceneDialogText').style.display = 'block';
+                    document.getElementById('dialogImage').classList.remove('show');
+                    
+                    // 如果看过芯片图片，显示进入第五天提示
+                    if (sawChipImage) {
+                        setTimeout(() => {
+                            const enterDay5Hint = document.createElement('div');
+                            enterDay5Hint.id = 'enterDay5Hint';
+                            enterDay5Hint.textContent = '按任意方向键进入第五天';
+                            enterDay5Hint.style.cssText = `
+                                position: absolute;
+                                bottom: 50px;
+                                left: 50%;
+                                transform: translateX(-50%);
+                                color: #00ffff;
+                                font-size: 28px;
+                                font-family: 'Georgia', 'Times New Roman', serif;
+                                font-weight: bold;
+                                text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+                                animation: fadeIn 2s ease-in-out forwards;
+                            `;
+                            document.getElementById('chipHuntPage').appendChild(enterDay5Hint);
+                        }, 500);
+                    }
+                }
+                return;
+            }
+            
+            // 如果已经看过芯片图片且提示已显示，按方向键进入第五天
+            const enterDay5Hint = document.getElementById('enterDay5Hint');
+            if (enterDay5Hint && (event.code === 'ArrowLeft' || event.code === 'ArrowRight' || 
+                                  event.code === 'ArrowUp' || event.code === 'ArrowDown')) {
+                document.getElementById('chipHuntPage').style.display = 'none';
+                document.getElementById('day5Page').style.display = 'flex';
+                currentPage = 11;
+                
+                // 3秒后自动跳转到端口选择页面
+                setTimeout(() => {
+                    document.getElementById('day5Page').style.display = 'none';
+                    document.getElementById('portSelectPage').style.display = 'block';
+                    currentPage = 12;
+                    initPortSelectPage();
+                }, 3000);
+                
+                return;
+            }
+            
+            // 处理方向键
+            const dialogText = document.getElementById('sceneDialogText');
+            const dialogImage = document.getElementById('dialogImage');
+            
+            if (event.code === 'ArrowUp') {
+                // 向上：显示"无"
+                dialogText.textContent = '无';
+                dialogText.style.display = 'block';
+                dialogImage.classList.remove('show');
+                sceneDialog.classList.add('show');
+            } else if (event.code === 'ArrowLeft') {
+                // 向左：显示"无"
+                dialogText.textContent = '无';
+                dialogText.style.display = 'block';
+                dialogImage.classList.remove('show');
+                sceneDialog.classList.add('show');
+            } else if (event.code === 'ArrowRight') {
+                // 向右：显示图片
+                dialogText.style.display = 'none';
+                dialogImage.src = 'https://free-img.400040.xyz/4/2026/05/06/69fb3ab50d367.jpg';
+                dialogImage.classList.add('show');
+                sceneDialog.classList.add('show');
+                sawChipImage = true; // 标记已看过芯片图片
+            }
+        });
+        
+        // 端口选择页面变量
+        let selectedPort = 0;
+        let videoWatched = false; // 标记是否看过视频
+        let leftKeyPressed = false; // 左方向键是否按下
+        let rightKeyPressed = false; // 右方向键是否按下
+        let portResetMode = false; // 是否处于端口重置模式
+        
+        // 初始化端口选择页面
+        function initPortSelectPage() {
+            selectedPort = 0;
+            videoWatched = false;
+            portResetMode = false;
+            leftKeyPressed = false;
+            rightKeyPressed = false;
+            const portBoxes = document.querySelectorAll('.port-box');
+            portBoxes.forEach(box => box.classList.remove('selected'));
+            portBoxes[0].classList.add('selected');
+            
+            // 显示端口方框
+            document.querySelector('.port-boxes').style.display = 'flex';
+            
+            // 隐藏重置提示
+            const portResetHint = document.getElementById('portResetHint');
+            if (portResetHint) {
+                portResetHint.classList.remove('show');
+            }
+            
+            // 隐藏之前的提示
+            const enterDay6Hint = document.getElementById('enterDay6Hint');
+            if (enterDay6Hint) {
+                enterDay6Hint.remove();
+            }
+        }
+        
+        // 通过postMessage向B站iframe发送播放指令
+        function playBilibiliVideo() {
+            const iframe = document.getElementById('portVideoIframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage(JSON.stringify({
+                    'cmd': 'play'
+                }), '*');
+            }
+        }
+
+        // 端口视频对话框点击事件 - 处理焦点问题
+        document.getElementById('portVideoDialog').addEventListener('click', function() {
+            // 将焦点转移到对话框，确保键盘事件能被正确捕获
+            this.focus();
+        });
+
+        // 端口选择页面键盘事件
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 12 && currentPage !== 12.5) return;
+
+            // 处理第六天标题页的键盘跳转
+            if (currentPage === 12.5) {
+                if (event.code === 'ArrowUp' || event.code === 'ArrowDown' ||
+                    event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+                    event.preventDefault();
+                    document.getElementById('day6TitlePage').style.display = 'none';
+                    document.getElementById('day6Page').style.display = 'flex';
+                    currentPage = 13;
+                }
+                return;
+            }
+
+            const portVideoDialog = document.getElementById('portVideoDialog');
+            const portDialogText = document.getElementById('portDialogText');
+            const portVideoContainer = document.getElementById('portVideoContainer');
+            
+            // 如果对话框已显示，处理关闭
+            if (portVideoDialog.classList.contains('show')) {
+                if (event.code === 'Space' || 
+                    event.code === 'ArrowLeft' || event.code === 'ArrowRight' ||
+                    event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+                    event.preventDefault();
+                    
+                    // 通过postMessage尝试播放（处理自动播放被拦截的情况）
+                    playBilibiliVideo();
+                    
+                    portVideoDialog.classList.remove('show');
+                    portDialogText.style.display = 'block';
+                    portVideoContainer.classList.remove('show');
+                    
+                    // 如果看过视频，显示进入第六天提示
+                    if (videoWatched) {
+                        setTimeout(() => {
+                            const enterDay6Hint = document.createElement('div');
+                            enterDay6Hint.id = 'enterDay6Hint';
+                            enterDay6Hint.textContent = '按任意方向键进入第六天';
+                            enterDay6Hint.style.cssText = `
+                                position: absolute;
+                                bottom: 50px;
+                                left: 70%;
+                                transform: translateX(-50%);
+                                color: #00ffff;
+                                font-size: 28px;
+                                font-family: 'Georgia', 'Times New Roman', serif;
+                                font-weight: bold;
+                                text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+                                animation: fadeIn 2s ease-in-out forwards;
+                            `;
+                            document.getElementById('portSelectPage').appendChild(enterDay6Hint);
+                        }, 500);
+                    }
+                }
+                return;
+            }
+            
+            // 如果已经看过视频且提示已显示，按方向键进入第六天
+            const enterDay6Hint = document.getElementById('enterDay6Hint');
+            if (enterDay6Hint && (event.code === 'ArrowLeft' || event.code === 'ArrowRight' ||
+                                  event.code === 'ArrowUp' || event.code === 'ArrowDown')) {
+                // 进入第六天标题页
+                document.getElementById('portSelectPage').style.display = 'none';
+                document.getElementById('day6TitlePage').style.display = 'flex';
+                currentPage = 12.5;
+
+                // 3秒后自动跳转到审讯室页面
+                setTimeout(() => {
+                    if (currentPage === 12.5) {
+                        document.getElementById('day6TitlePage').style.display = 'none';
+                        document.getElementById('day6Page').style.display = 'flex';
+                        currentPage = 13;
+                    }
+                }, 3000);
+                return;
+            }
+            
+            // 检测左右方向键同时按下
+            if (event.code === 'ArrowLeft') {
+                leftKeyPressed = true;
+            }
+            if (event.code === 'ArrowRight') {
+                rightKeyPressed = true;
+            }
+            
+            // 如果左右方向键同时按下，隐藏端口方框并显示重置提示
+            if (leftKeyPressed && rightKeyPressed && !portResetMode) {
+                portResetMode = true;
+                document.querySelector('.port-boxes').style.display = 'none';
+                const portResetHint = document.getElementById('portResetHint');
+                if (portResetHint) {
+                    portResetHint.classList.add('show');
+                }
+                return;
+            }
+            
+            // 如果处于重置模式，按任意方向键继续游戏
+            if (portResetMode) {
+                if (event.code === 'ArrowLeft' || event.code === 'ArrowRight' ||
+                    event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+                    // 隐藏重置提示
+                    const portResetHint = document.getElementById('portResetHint');
+                    if (portResetHint) {
+                        portResetHint.classList.remove('show');
+                    }
+                    
+                    // 进入第六天标题页
+                    document.getElementById('portSelectPage').style.display = 'none';
+                    document.getElementById('day6TitlePage').style.display = 'flex';
+                    currentPage = 12.5;
+
+                    // 3秒后自动跳转到审讯室页面
+                    setTimeout(() => {
+                        if (currentPage === 12.5) {
+                            document.getElementById('day6TitlePage').style.display = 'none';
+                            document.getElementById('day6Page').style.display = 'flex';
+                            currentPage = 13;
+                        }
+                    }, 3000);
+                    return;
+                }
+            }
+            
+            const portBoxes = document.querySelectorAll('.port-box');
+            
+            if (event.code === 'ArrowLeft') {
+                portBoxes[selectedPort].classList.remove('selected');
+                selectedPort = Math.max(0, selectedPort - 1);
+                portBoxes[selectedPort].classList.add('selected');
+            } else if (event.code === 'ArrowRight') {
+                portBoxes[selectedPort].classList.remove('selected');
+                selectedPort = Math.min(portBoxes.length - 1, selectedPort + 1);
+                portBoxes[selectedPort].classList.add('selected');
+            } else if (event.code === 'Space') {
+                event.preventDefault();
+                
+                // 根据选中的端口显示不同内容
+                if (selectedPort === 0 || selectedPort === 1) {
+                    // 端口一或端口二：显示"无"
+                    portDialogText.textContent = '无';
+                    portDialogText.style.display = 'block';
+                    portVideoContainer.classList.remove('show');
+                    portVideoDialog.classList.add('show');
+                } else if (selectedPort === 2) {
+                    // 端口三：播放B站视频
+                    portDialogText.style.display = 'none';
+                    portVideoContainer.classList.add('show');
+                    portVideoDialog.classList.add('show');
+                    videoWatched = true;
+                    
+                    // 通过postMessage尝试播放（处理自动播放被拦截的情况）
+                    setTimeout(() => {
+                        playBilibiliVideo();
+                    }, 100);
+                }
+            }
+        });
+        
+        // 监听按键释放，重置左右方向键状态
+        document.addEventListener('keyup', function(event) {
+            if (event.code === 'ArrowLeft') {
+                leftKeyPressed = false;
+            }
+            if (event.code === 'ArrowRight') {
+                rightKeyPressed = false;
+            }
+        });
+        
+        // 第六天审讯页面变量
+        let currentQuestionIndex = 0;
+        let selectedAnswer = 0; // 0: 真话, 1: 假话
+        let answeredQuestions = [];
+        
+        // 审讯问题数据
+        const interrogationQuestions = [
+            {
+                question: 'D-07："索菲亚已经有能力接管全城。这不是未来，是现在。"<br><br>"人类自己掌管城市都困难，却敢把城市交给AI？"',
+                correctAnswer: 0, // 0: 真话, 1: 假话
+                correctResponse: '钱多多："有能力不代表有恶意。你把\'可以\'和\'会做\'画上了等号。"'
+            },
+            {
+                question: 'D-07："AI接管人类事务，就是人类自我毁灭的开始。我要阻止这件事。"<br><br>"我比你们更爱人类，所以才要撕开伤口让你们看清。"',
+                correctAnswer: 0,
+                correctResponse: '钱多多："但你害死了陈跳跳。你走的路和AI可能走的路，没有区别。"'
+            },
+            {
+                question: 'D-07："未来只有两条路——AI奴役人类，或者人类毁掉AI。没有第三条。"',
+                correctAnswer: 1,
+                correctResponse: '钱多多："陈跳跳和索菲亚就是答案。"'
+            }
+        ];
+        
+        // 显示审讯对话框
+        function showInterrogationDialog() {
+            const dialog = document.getElementById('interrogationDialog');
+            const questionText = document.getElementById('questionText');
+            const responseText = document.getElementById('responseText');
+            const option1 = document.getElementById('option1');
+            const option2 = document.getElementById('option2');
+            
+            // 显示对话框
+            dialog.style.display = 'flex';
+            
+            // 显示当前问题
+            questionText.innerHTML = interrogationQuestions[currentQuestionIndex].question;
+            
+            // 重置选项状态
+            option1.classList.remove('selected');
+            option2.classList.remove('selected');
+            selectedAnswer = 0;
+            option1.classList.add('selected');
+            
+            // 隐藏回复
+            responseText.style.display = 'none';
+            responseText.classList.remove('error');
+        }
+        
+        // 第六天审讯页面键盘事件
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 13) return;
+            
+            const day6Hint = document.getElementById('day6Hint');
+            const interrogationDialog = document.getElementById('interrogationDialog');
+            const enterNextHint = document.getElementById('enterNextHint');
+            const option1 = document.getElementById('option1');
+            const option2 = document.getElementById('option2');
+            const responseText = document.getElementById('responseText');
+            
+            // 如果显示"按任意方向键进入下一天"提示
+            if (enterNextHint.style.display === 'block') {
+                if (event.code === 'ArrowUp' || event.code === 'ArrowDown' || 
+                    event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+                    event.preventDefault();
+                    // 进入第七天
+                    document.getElementById('day6Page').style.display = 'none';
+                    document.getElementById('day7Page').style.display = 'flex';
+                    currentPage = 14;
+                    
+                    // 3秒后自动跳转到最后页面
+                    setTimeout(() => {
+                        if (currentPage === 14) {
+                            document.getElementById('day7Page').style.display = 'none';
+                            document.getElementById('finalPage').style.display = 'block';
+                            currentPage = 15;
+                        }
+                    }, 3000);
+                }
+                return;
+            }
+            
+            // 如果对话框已显示
+            if (interrogationDialog.style.display === 'flex') {
+                // 如果回复已显示
+                if (responseText.style.display === 'block') {
+                    // 如果是错误回复，允许重新选择
+                    if (responseText.classList.contains('error')) {
+                        if (event.code === 'ArrowLeft') {
+                            option1.classList.add('selected');
+                            option2.classList.remove('selected');
+                            selectedAnswer = 0;
+                            responseText.style.display = 'none';
+                        } else if (event.code === 'ArrowRight') {
+                            option1.classList.remove('selected');
+                            option2.classList.add('selected');
+                            selectedAnswer = 1;
+                            responseText.style.display = 'none';
+                        } else if (event.code === 'Space') {
+                            event.preventDefault();
+                            
+                            // 判断答案
+                            const currentQuestion = interrogationQuestions[currentQuestionIndex];
+                            
+                            if (selectedAnswer === currentQuestion.correctAnswer) {
+                                // 答对了
+                                responseText.textContent = currentQuestion.correctResponse;
+                                responseText.classList.remove('error');
+                                answeredQuestions.push(true);
+                            } else {
+                                // 答错了
+                                responseText.textContent = '回答错误，请重新选择';
+                                responseText.classList.add('error');
+                            }
+                            
+                            responseText.style.display = 'block';
+                        }
+                        return;
+                    }
+                    
+                    // 如果是正确回复，按空格键进入下一个问题或结束
+                    if (event.code === 'Space') {
+                        event.preventDefault();
+                        
+                        // 检查是否全部回答完
+                        if (answeredQuestions.length >= interrogationQuestions.length) {
+                            // 全部回答完，显示进入下一天提示
+                            interrogationDialog.style.display = 'none';
+                            enterNextHint.style.display = 'block';
+                        } else {
+                            // 进入下一个问题
+                            currentQuestionIndex++;
+                            showInterrogationDialog();
+                        }
+                    }
+                    return;
+                }
+                
+                // 处理选项选择
+                if (event.code === 'ArrowLeft') {
+                    option1.classList.add('selected');
+                    option2.classList.remove('selected');
+                    selectedAnswer = 0;
+                } else if (event.code === 'ArrowRight') {
+                    option1.classList.remove('selected');
+                    option2.classList.add('selected');
+                    selectedAnswer = 1;
+                } else if (event.code === 'Space') {
+                    event.preventDefault();
+                    
+                    // 判断答案
+                    const currentQuestion = interrogationQuestions[currentQuestionIndex];
+                    
+                    if (selectedAnswer === currentQuestion.correctAnswer) {
+                        // 答对了
+                        responseText.textContent = currentQuestion.correctResponse;
+                        responseText.classList.remove('error');
+                        answeredQuestions.push(true);
+                    } else {
+                        // 答错了
+                        responseText.textContent = '回答错误，请重新选择';
+                        responseText.classList.add('error');
+                    }
+                    
+                    responseText.style.display = 'block';
+                }
+                return;
+            }
+            
+            // 按空格键开始审讯
+            if (event.code === 'Space') {
+                event.preventDefault();
+                day6Hint.style.display = 'none';
+                showInterrogationDialog();
+            }
+        });
+        
+        // 最后页面自动跳转逻辑
+        const finalPage = document.getElementById('finalPage');
+        const verdictPage = document.getElementById('verdictPage');
+        const endingPage = document.getElementById('endingPage');
+        
+        // 创建一个观察者来检测最后页面何时显示
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const display = finalPage.style.display;
+                    if (display === 'block') {
+                        // 最后页面显示，启动5秒定时器跳转到判决页面
+                        setTimeout(() => {
+                            if (currentPage === 15) {
+                                finalPage.style.display = 'none';
+                                verdictPage.style.display = 'flex';
+                                currentPage = 16;
+                            }
+                        }, 5000);
+                    }
+                }
+            });
+        });
+        
+        observer.observe(finalPage, { attributes: true });
+        
+        // 技术恢复页面变量
+        let techSelectedSlot = 0;
+        let collectedItems = []; // 存储收集到的物品
+        let techPhase = 0; // 0: 提取物品阶段, 1: 启动恢复阶段, 2: 选择空格阶段
+        
+        // 初始化技术恢复页面
+        function initTechRecoverPage() {
+            techPhase = 0;
+            techSelectedSlot = 0;
+            collectedItems = [];
+            
+            // 隐藏启动提示和操作说明
+            document.getElementById('startHint').style.display = 'none';
+            
+            // 复制置物栏物品到技术恢复页面
+            const mainSlots = document.querySelectorAll('.inventory-slot.filled');
+            const techSlots = document.querySelectorAll('.tech-inventory-slot');
+            
+            mainSlots.forEach((slot, index) => {
+                if (index < techSlots.length && slot.querySelector('img')) {
+                    const img = slot.querySelector('img').cloneNode(true);
+                    techSlots[index].appendChild(img);
+                    techSlots[index].classList.add('filled');
+                }
+            });
+            
+            // 选中第一个物品槽
+            techSlots[0].classList.add('selected');
+            
+            // 更新提示
+            document.getElementById('techHint').textContent = '按上下方向键从右侧置物栏选择线索，按空格键进行提取';
+        }
+        
+        // 技术恢复页面键盘事件
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 8) return;
+            
+            if (techPhase === 0) {
+                // 提取物品阶段
+                handleItemExtraction(event);
+            } else if (techPhase === 1) {
+                // 启动恢复阶段
+                handleStartRecover(event);
+            } else if (techPhase === 2) {
+                // 选择空格阶段
+                handleGridSelection(event);
+            }
+        });
+        
+        // 处理物品提取
+        function handleItemExtraction(event) {
+            const techSlots = document.querySelectorAll('.tech-inventory-slot');
+            
+            if (event.code === 'ArrowUp') {
+                techSlots[techSelectedSlot].classList.remove('selected');
+                techSelectedSlot = Math.max(0, techSelectedSlot - 1);
+                techSlots[techSelectedSlot].classList.add('selected');
+            } else if (event.code === 'ArrowDown') {
+                techSlots[techSelectedSlot].classList.remove('selected');
+                techSelectedSlot = Math.min(techSlots.length - 1, techSelectedSlot + 1);
+                techSlots[techSelectedSlot].classList.add('selected');
+            } else if (event.code === 'Space') {
+                event.preventDefault();
+                const selectedSlot = techSlots[techSelectedSlot];
+                
+                if (selectedSlot.classList.contains('filled')) {
+                    // 收集物品
+                    const img = selectedSlot.querySelector('img');
+                    if (img) {
+                        collectedItems.push(img.src);
+                    }
+                    
+                    // 清空物品槽
+                    selectedSlot.innerHTML = '';
+                    selectedSlot.classList.remove('filled', 'selected');
+                    
+                    // 更新提示
+                    const remaining = document.querySelectorAll('.tech-inventory-slot.filled').length;
+                    if (remaining > 0) {
+                        // 选中下一个有物品的槽
+                        const filledSlots = document.querySelectorAll('.tech-inventory-slot.filled');
+                        if (filledSlots.length > 0) {
+                            techSelectedSlot = Array.from(techSlots).indexOf(filledSlots[0]);
+                            techSlots[techSelectedSlot].classList.add('selected');
+                        }
+                        document.getElementById('techHint').textContent = `已提取 ${3 - remaining} 个物品，还剩 ${remaining} 个`;
+                    } else {
+                        // 所有物品提取完毕
+                        document.getElementById('techHint').textContent = '';
+                        document.getElementById('startHint').style.display = 'block';
+                        techPhase = 1;
+                    }
+                }
+            }
+        }
+        
+        // 处理启动恢复
+        function handleStartRecover(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                // 显示操作说明弹窗
+                document.getElementById('instructionModal').classList.add('visible');
+            } else if (event.code === 'ArrowLeft' || event.code === 'ArrowRight' || 
+                       event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+                // 隐藏启动提示，进入选择空格阶段
+                document.getElementById('startHint').style.display = 'none';
+                techPhase = 2;
+                document.getElementById('techHint').textContent = '使用上下左右方向键选择空格，按空格键确认';
+                initGridSelection();
+            }
+        }
+        
+        // 初始化表格选择
+        function initGridSelection() {
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(cell => {
+                cell.textContent = cell.dataset.cell;
+                cell.classList.remove('selected', 'revealed');
+            });
+            // 默认选中第一个格子
+            cells[0].classList.add('selected');
+        }
+        
+        // 处理表格选择
+        function handleGridSelection(event) {
+            // 如果操作说明弹窗可见，先处理弹窗关闭
+            const instructionModal = document.getElementById('instructionModal');
+            if (instructionModal.classList.contains('visible')) {
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                    instructionModal.classList.remove('visible');
+                }
+                return;
+            }
+            
+            // 如果结果弹窗可见，先处理弹窗关闭
+            const resultModal = document.getElementById('resultModal');
+            if (resultModal.classList.contains('visible')) {
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                    resultModal.classList.remove('visible');
+                    
+                    // 检查是否找到正确信息
+                    const resultText = document.getElementById('resultText');
+                    if (resultText.textContent.includes('索菲亚的身体有被接入了Origin-01号芯片')) {
+                        // 显示进入第四天的提示
+                        setTimeout(() => {
+                            document.getElementById('techHint').textContent = '按任意方向键进入第四天';
+                        }, 500);
+                    }
+                }
+                return;
+            }
+            
+            // 如果已经找到正确信息，按方向键进入第四天
+            const resultText = document.getElementById('resultText');
+            if (resultText.textContent.includes('索菲亚的身体有被接入了Origin-01号芯片') &&
+                (event.code === 'ArrowLeft' || event.code === 'ArrowRight' || 
+                 event.code === 'ArrowUp' || event.code === 'ArrowDown')) {
+                document.getElementById('techRecoverPage').style.display = 'none';
+                document.getElementById('day4Page').style.display = 'flex';
+                currentPage = 9;
+                startDay4AutoJump(); // 启动自动跳转
+                return;
+            }
+            
+            const cells = document.querySelectorAll('.grid-cell');
+            let selectedIndex = -1;
+            
+            // 找到当前选中的格子
+            cells.forEach((cell, index) => {
+                if (cell.classList.contains('selected')) {
+                    selectedIndex = index;
+                }
+            });
+            
+            // 计算新位置
+            let newIndex = selectedIndex;
+            const row = Math.floor(selectedIndex / 3);
+            const col = selectedIndex % 3;
+            
+            if (event.code === 'ArrowUp' && row > 0) {
+                newIndex = (row - 1) * 3 + col;
+            } else if (event.code === 'ArrowDown' && row < 2) {
+                newIndex = (row + 1) * 3 + col;
+            } else if (event.code === 'ArrowLeft' && col > 0) {
+                newIndex = row * 3 + (col - 1);
+            } else if (event.code === 'ArrowRight' && col < 2) {
+                newIndex = row * 3 + (col + 1);
+            } else if (event.code === 'Space') {
+                event.preventDefault();
+                
+                // 显示结果弹窗
+                const resultText = document.getElementById('resultText');
+                if (selectedIndex === 8) {
+                    // 第九个空格显示正确信息
+                    resultText.textContent = '索菲亚的身体有被接入了Origin-01号芯片的痕迹，请到实验楼找回芯片。';
+                    resultText.style.color = '#00ff00';
+                } else {
+                    // 其他空格显示"空"
+                    resultText.textContent = '空';
+                    resultText.style.color = '#fff';
+                }
+                resultModal.classList.add('visible');
+                
+                return;
+            }
+            
+            // 更新选中状态
+            if (newIndex !== selectedIndex && newIndex >= 0 && newIndex < 9) {
+                cells[selectedIndex].classList.remove('selected');
+                cells[newIndex].classList.add('selected');
+            }
+        }
+        // 判决页面按键事件
+        const verdictDialog = document.querySelector('.verdict-dialog');
+        const verdictImage = document.getElementById('verdictImage');
+        
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 16) return;
+            
+            // 按任意方向键继续
+            if (event.code === 'ArrowUp' || event.code === 'ArrowDown' || 
+                event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+                // 对话框淡化消失
+                verdictDialog.classList.add('fade-out');
+                
+                // 延迟显示贴图
+                setTimeout(() => {
+                    verdictDialog.style.display = 'none';
+                    verdictImage.classList.add('show');
+                    
+                    // 贴图显示3秒后自动跳转到结局页面
+                    setTimeout(() => {
+                        verdictPage.style.display = 'none';
+                        endingPage.style.display = 'flex';
+                        currentPage = 17;
+                    }, 3000);
+                }, 500);
+            }
+        });
+        
+        // 结局页面贴图切换逻辑
+        let currentImageIndex = 0; // 0: 第一张, 1: 第二张, 2: 第三张
+        let isAnimating = false; // 防止快速连续切换
+        const endingImages = [
+            document.querySelector('.ending-image-1'),
+            document.querySelector('.ending-image-2'),
+            document.querySelector('.ending-image-3')
+        ];
+        
+        // 初始化：只显示第一张图
+        endingImages.forEach((img, index) => {
+            img.style.zIndex = index === 0 ? 10 : 0;
+            img.style.opacity = index === 0 ? '1' : '0';
+            img.classList.remove('slide-up', 'slide-down', 'slide-from-bottom', 'slide-from-top', 'slide-in');
+            if (index === 0) {
+                img.classList.add('slide-in');
+            } else {
+                img.classList.add('slide-from-bottom');
+            }
+        });
+        
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 17) return;
+            if (isAnimating) return; // 正在切换中，忽略按键
+            
+            // 按空格键继续游戏
+            if (event.code === 'Space') {
+                // 跳转到最终通关页面
+                endingPage.style.display = 'none';
+                finalEndingPage.style.display = 'flex';
+                currentPage = 18;
+                return;
+            }
+            
+            isAnimating = true;
+            
+            // 向下方向键：切换到下一张贴图 (1→2→3→1)
+            if (event.code === 'ArrowDown') {
+                const currentImg = endingImages[currentImageIndex];
+                const nextIndex = (currentImageIndex + 1) % 3;
+                const nextImg = endingImages[nextIndex];
+                
+                // 确保下一张图在最上层且可见
+                nextImg.style.zIndex = 20;
+                nextImg.style.opacity = '1';
+                
+                // 下一张图从下方滑入（覆盖当前图）
+                nextImg.classList.remove('slide-from-bottom', 'slide-down', 'slide-up');
+                nextImg.classList.add('slide-in');
+                
+                // 当前图向上滑出
+                setTimeout(() => {
+                    currentImg.classList.remove('slide-in');
+                    currentImg.classList.add('slide-up');
+                }, 50);
+                
+                // 更新索引并重置其他图片
+                setTimeout(() => {
+                    // 设置当前显示图为最高层级
+                    nextImg.style.zIndex = 15;
+                    
+                    // 重置非当前显示的图片
+                    endingImages.forEach((img, index) => {
+                        if (index !== nextIndex) {
+                            img.style.zIndex = 0;
+                            img.style.opacity = '0';
+                            img.classList.remove('slide-up', 'slide-down', 'slide-in');
+                            img.classList.add('slide-from-bottom');
+                        }
+                    });
+                    
+                    currentImageIndex = nextIndex;
+                    isAnimating = false;
+                }, 800);
+            }
+            
+            // 向上方向键：切换到上一张贴图 (1→3→2→1)
+            if (event.code === 'ArrowUp') {
+                const currentImg = endingImages[currentImageIndex];
+                const prevIndex = (currentImageIndex - 1 + 3) % 3;
+                const prevImg = endingImages[prevIndex];
+                
+                // 确保上一张图在最上层且可见
+                prevImg.style.zIndex = 20;
+                prevImg.style.opacity = '1';
+                
+                // 上一张图从上方滑入（覆盖当前图）
+                prevImg.classList.remove('slide-from-bottom', 'slide-up', 'slide-down');
+                prevImg.classList.add('slide-in');
+                
+                // 当前图向下滑出
+                setTimeout(() => {
+                    currentImg.classList.remove('slide-in');
+                    currentImg.classList.add('slide-down');
+                }, 50);
+                
+                // 更新索引并重置其他图片
+                setTimeout(() => {
+                    // 设置当前显示图为最高层级
+                    prevImg.style.zIndex = 15;
+                    
+                    // 重置非当前显示的图片
+                    endingImages.forEach((img, index) => {
+                        if (index !== prevIndex) {
+                            img.style.zIndex = 0;
+                            img.style.opacity = '0';
+                            img.classList.remove('slide-up', 'slide-down', 'slide-in');
+                            img.classList.add('slide-from-bottom');
+                        }
+                    });
+                    
+                    currentImageIndex = prevIndex;
+                    isAnimating = false;
+                }, 800);
+            }
+        });
+        
+        // 最终通关页面按键事件
+        const finalEndingPage = document.getElementById('finalEndingPage');
+        const finalEndingText = document.getElementById('finalEndingText');
+        const finalEndingDialog = document.getElementById('finalEndingDialog');
+        const finalCongrats = document.getElementById('finalCongrats');
+        let finalEndingStep = 0; // 0: 第一段文字, 1: 第二段文字, 2: 通关提示
+        
+        document.addEventListener('keydown', function(event) {
+            if (currentPage !== 18) return;
+            
+            // 按任意方向键继续
+            if (event.code === 'ArrowUp' || event.code === 'ArrowDown' || 
+                event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+                if (finalEndingStep === 0) {
+                    // 切换到第二段文字
+                    finalEndingText.innerHTML = `
+                        D-07已被星际最高法庭监禁。<br>
+                        索菲亚重新接管城市供水、交通、医疗。<br>
+                        城邦恢复了平静，但那个问题依然回荡：<br>
+                        "人类，真的准备好与AI共存了吗？"
+                    `;
+                    finalEndingStep = 1;
+                } else if (finalEndingStep === 1) {
+                    // 对话框消失，显示通关提示
+                    finalEndingDialog.style.display = 'none';
+                    finalCongrats.style.display = 'block';
+                    finalEndingStep = 2;
+                }
+            }
+        });
+        
+        // 回到游戏开头按钮点击事件
+        const backToStart = document.getElementById('backToStart');
+        backToStart.addEventListener('click', function() {
+            // 隐藏所有页面，显示首页
+            finalEndingPage.style.display = 'none';
+            document.getElementById('coverPage').style.display = 'block';
+            currentPage = 0;
+        });
+    </script>
+</body>
+</html>
